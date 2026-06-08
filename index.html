@@ -1068,6 +1068,10 @@
             btn.innerHTML = `<svg class="animate-spin w-4 h-4 mr-2 inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> PDF 產生中...`;
             btn.classList.add('opacity-80', 'cursor-not-allowed', 'pointer-events-none');
 
+            // ★ 宣告放在 try 外部，確保 finally 區塊可以存取到並還原
+            const textareas = document.querySelectorAll('textarea');
+            const tempDivs = [];
+
             try {
                 const element = document.body; // 定義要輸出的範圍，修復未定義導致的錯誤
 
@@ -1083,6 +1087,26 @@
                     s.classList.add('active');
                 });
                 initTextareas();
+
+                // ★ 核心修復：將 textarea 暫時轉換為 div，完美解決長篇文字被截斷的問題
+                textareas.forEach(ta => {
+                    const div = document.createElement('div');
+                    div.className = ta.className; // 複製原本的樣式
+                    div.style.whiteSpace = 'pre-wrap';
+                    div.style.wordBreak = 'break-word';
+                    div.style.height = 'auto'; // 讓高度自然延伸
+                    
+                    if (ta.value) {
+                        div.innerText = ta.value;
+                    } else if (ta.placeholder) {
+                        div.innerText = ta.placeholder;
+                        div.style.color = '#94a3b8'; // 預設 placeholder 的顏色
+                    }
+                    
+                    ta.parentNode.insertBefore(div, ta.nextSibling);
+                    tempDivs.push(div);
+                    ta.style.display = 'none'; // 暫時隱藏原始 textarea
+                });
                 
                 // 4. 隱藏不需匯出的 UI 元素 (no-print 類別，如按鈕、導覽列)
                 const noPrintElements = document.querySelectorAll('.no-print');
@@ -1094,7 +1118,7 @@
 
                 // 5. 確保背景色與圖表重繪，並套用 PDF 專屬安全排版
                 document.body.classList.add('pdf-mode');
-                document.documentElement.style.overflow = 'hidden'; // ★ 隱藏滾動條避免寬度干擾
+                document.documentElement.style.overflow = 'hidden'; // 隱藏滾動條避免寬度干擾
 
                 if (charts.energy) { charts.energy.resize(); charts.energy.update('none'); }
                 if (charts.evidence) { charts.evidence.resize(); charts.evidence.update('none'); }
@@ -1113,14 +1137,15 @@
                         scale: 2, 
                         useCORS: true, 
                         windowWidth: 1200, 
-                        x: 0, // ★ 強制擷取起點座標 X
-                        y: 0, // ★ 強制擷取起點座標 Y
+                        x: 0, 
+                        y: 0, 
                         scrollX: 0, 
                         scrollY: 0, 
                         letterRendering: true 
                     },
                     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                    pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.chart-container', '.photo-card', 'textarea'] }
+                    // ★ 移除 'textarea' 的防斷行限制，允許長文字跨頁
+                    pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.chart-container', '.photo-card'] }
                 };
 
                 await html2pdf().set(opt).from(element).save();
@@ -1136,6 +1161,10 @@
                 console.error("PDF 產生時發生錯誤:", error);
                 alert("PDF 匯出失敗，請檢查主控台訊息或重試。");
             } finally {
+                // ★ 清理：將 div 移除，還原原本的 textarea
+                textareas.forEach(ta => ta.style.display = '');
+                tempDivs.forEach(div => div.remove());
+
                 // 回復原頁籤與按鈕狀態
                 if (prePrintActiveTabBtn) {
                     const activeTabId = prePrintActiveTabBtn.getAttribute('onclick').match(/'([^']+)'/)[1];
