@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>桃園市大園區溪海國民小學教師專業成長觀課表單 V3.1</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- html2pdf.js 產生實體 PDF 檔案套件 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
+        
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            background-color: #f8fafc; 
+            color: #1e293b; 
+            margin: 0; 
+            transition: background 0.3s;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* 自訂捲軸 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .chart-container { position: relative; width: 100%; max-width: 750px; margin: auto; height: 320px; }
+        
+        .nav-active { border-bottom: 4px solid #1b4332; color: #1b4332 !important; font-weight: 700; background: linear-gradient(to top, #f0fdf4, transparent); }
+        .section-card { display: none; opacity: 0; transition: opacity 0.3s ease-in-out; }
+        .section-card.active { display: block; opacity: 1; animation: slideUp 0.4s ease-out; }
+        
+        @keyframes slideUp { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+
+        @keyframes slideDown { 
+            from { transform: translateY(-20px); opacity: 0; } 
+            to { transform: translateY(0); opacity: 1; } 
+        }
+        .animate-slideDown { animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        @keyframes pulse-ai {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
+
+        .counter-btn { transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; user-select: none; }
+        .counter-btn:active { transform: scale(0.92); opacity: 0.8; }
+        
+        .mode-label { cursor: pointer; transition: 0.2s; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px; font-size: 0.75rem; background: white; text-align: center; display: block; }
+        input[type="radio"]:checked + .mode-label { background-color: #1b4332; color: white; border-color: #1b4332; box-shadow: 0 2px 4px rgba(27, 67, 50, 0.2); }
+        
+        .option-chip { cursor: pointer; display: flex; align-items: center; gap: 8px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; background: white; font-size: 0.875rem; transition: all 0.2s; }
+        .option-chip:hover { background-color: #f8fafc; border-color: #cbd5e1; }
+        .option-chip input[type="checkbox"] { accent-color: #1b4332; width: 1.1rem; height: 1.1rem; }
+        
+        .ai-badge { background: linear-gradient(135deg, #8b5cf6 0%, #4f46e5 100%); color: white; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: bold; letter-spacing: 0.05em; box-shadow: 0 2px 5px rgba(139, 92, 246, 0.3); }
+        .ai-loading { animation: pulse-ai 1.5s infinite ease-in-out; }
+        
+        .photo-card { position: relative; overflow: hidden; border-radius: 12px; border: 1px solid #e2e8f0; background: white; page-break-inside: avoid; transition: transform 0.2s; }
+        .photo-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .photo-preview { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; }
+        
+        .delete-btn { position: absolute; top: 12px; right: 12px; background: rgba(255, 255, 255, 0.95); color: #ef4444; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; font-size: 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: 0.2s; z-index: 10; }
+        .delete-btn:hover { background: #fee2e2; transform: scale(1.1); }
+
+        textarea { resize: none; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; }
+
+        /* 進度條樣式 */
+        .progress-container { width: 100%; background-color: #e2e8f0; border-radius: 999px; height: 6px; overflow: hidden; margin-top: -10px; margin-bottom: 24px; }
+        .progress-bar { height: 100%; background-color: #1b4332; transition: width 0.5s ease-out; }
+
+        /* 錄音按鈕動畫 */
+        @keyframes pulse-ring { 0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        .recording-active { animation: pulse-ring 2s infinite; background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important; }
+
+        @media print {
+            @page { size: A4; margin: 12mm; }
+            body { background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .no-print, nav, button, .counter-btn, input[type="range"], input[type="file"], .nav-btn, .delete-btn, .progress-container { display: none !important; }
+            /* 修正列印空白與切版問題 */
+            .section-card { 
+                display: block !important; 
+                opacity: 1 !important; 
+                border: none !important; 
+                margin-bottom: 30px !important; 
+                box-shadow: none !important; 
+                visibility: visible !important; 
+                page-break-inside: auto !important; 
+            }
+            main { padding: 0 !important; max-width: 100% !important; width: 100% !important; }
+            header { border-left-width: 12px !important; margin-bottom: 20px !important; padding: 15px !important; background-color: #f8fafc !important; border-radius: 8px !important; }
+            
+            .chart-container { height: 280px !important; width: 100% !important; display: block !important; page-break-inside: avoid !important; border: none !important; background: transparent !important; }
+            canvas { display: block !important; width: 100% !important; height: 100% !important; }
+            
+            .photo-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 15px !important; }
+            .photo-card { border: 1px solid #e2e8f0 !important; box-shadow: none !important; page-break-inside: avoid !important; }
+            
+            textarea { border: 1px solid #e2e8f0 !important; background: transparent !important; }
+            input[type="radio"]:not(:checked) + .mode-label { display: none !important; }
+            .option-chip input:not(:checked) + span { color: #cbd5e1 !important; text-decoration: line-through; }
+            .option-chip { border-color: transparent !important; padding: 4px !important; page-break-inside: avoid !important; }
+            tr { page-break-inside: avoid !important; } 
+        }
+    </style>
+</head>
+<body class="p-3 md:p-6 lg:p-8">
+
+    <header class="max-w-6xl mx-auto mb-6">
+        <div class="bg-white p-5 md:p-8 rounded-2xl shadow-sm border-l-[12px] border-[#1b4332] flex flex-col md:flex-row justify-between items-start md:items-center gap-5 relative">
+            <div>
+                <div class="flex items-center gap-3 mb-1">
+                    <h1 class="text-2xl md:text-3xl font-black text-[#1b4332] tracking-tight">教師專業成長觀課表單</h1>
+                    <span id="obs-code" class="bg-slate-100 text-slate-500 px-2.5 py-1 rounded-md text-xs font-mono font-bold tracking-wider border border-slate-200" title="觀課紀錄代碼">OBS-....</span>
+                </div>
+                <p class="text-slate-500 text-sm md:text-base font-medium">桃園市大園區溪海國民小學 • 數位導航 • 數據對話</p>
+            </div>
+            <div class="flex flex-wrap gap-3 no-print w-full md:w-auto">
+                <button onclick="clearData()" class="flex-1 md:flex-none px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-bold hover:bg-red-100 transition">
+                    重新開始
+                </button>
+                <button onclick="exportCSV()" class="flex-1 md:flex-none px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2">
+                    📊 匯出試算表 (CSV)
+                </button>
+                <button id="export-btn" onclick="exportPDF()" class="flex-1 md:flex-none px-6 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-900 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2">
+                    📄 直接匯出 PDF
+                </button>
+            </div>
+            <div id="save-indicator" class="absolute top-4 right-5 text-[11px] px-2 py-1 bg-green-100 text-green-700 rounded-full font-bold opacity-0 transition-opacity duration-500 no-print flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                已自動儲存
+            </div>
+        </div>
+    </header>
+
+    <nav class="max-w-6xl mx-auto mb-2 sticky top-2 md:top-4 z-50 no-print">
+        <div class="flex bg-white/80 backdrop-blur-md shadow-sm rounded-2xl border p-1.5 overflow-x-auto hide-scroll relative z-10">
+            <button class="nav-btn rounded-xl px-5 py-3 nav-active flex-1 whitespace-nowrap text-sm font-medium transition-colors" onclick="showTab('pre', this)">🎯 1. 說課對焦</button>
+            <button class="nav-btn rounded-xl px-5 py-3 flex-1 whitespace-nowrap text-sm font-medium transition-colors text-slate-500 hover:text-slate-800" onclick="showTab('obs', this)">⏱️ 2. 實時觀課</button>
+            <button class="nav-btn rounded-xl px-5 py-3 flex-1 whitespace-nowrap text-sm font-medium transition-colors text-slate-500 hover:text-slate-800" onclick="showTab('ana', this)">📊 3. 數據分析</button>
+            <button class="nav-btn rounded-xl px-5 py-3 flex-1 whitespace-nowrap text-sm font-medium transition-colors text-slate-500 hover:text-slate-800" onclick="showTab('post', this)">💬 4. 議課回饋</button>
+        </div>
+    </nav>
+    
+    <!-- 觀課進度條 -->
+    <div class="max-w-6xl mx-auto progress-container no-print">
+        <div id="obs-progress" class="progress-bar" style="width: 0%;"></div>
+    </div>
+
+    <main class="max-w-6xl mx-auto pb-20">
+        
+        <!-- 一、說課 -->
+        <section id="sec-pre" class="section-card active bg-white p-6 md:p-10 rounded-3xl shadow-sm border border-slate-100">
+            <div class="flex items-center gap-3 mb-8 border-b pb-4">
+                <div class="w-8 h-8 rounded-full bg-[#1b4332] text-white flex items-center justify-center font-bold">1</div>
+                <h2 class="text-xl font-bold text-[#1b4332]">說課脈絡與對焦</h2>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div class="space-y-6">
+                    <div class="grid grid-cols-2 gap-5">
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">授課教師</label>
+                            <input type="text" id="input-teach-name" oninput="syncNames(); saveData()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:border-[#1b4332] focus:bg-white focus:ring-2 focus:ring-[#1b4332]/20 outline-none transition-all" placeholder="姓名">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">觀課教師</label>
+                            <input type="text" id="input-obs-name" oninput="syncNames(); saveData()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:border-[#1b4332] focus:bg-white focus:ring-2 focus:ring-[#1b4332]/20 outline-none transition-all" placeholder="姓名">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">觀課班級</label>
+                            <input type="text" id="input-class" oninput="saveData()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:border-[#1b4332] focus:bg-white focus:ring-2 focus:ring-[#1b4332]/20 outline-none transition-all" placeholder="例如：三甲">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">觀課科目</label>
+                            <input type="text" id="input-subject" oninput="saveData()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:border-[#1b4332] focus:bg-white focus:ring-2 focus:ring-[#1b4332]/20 outline-none transition-all" placeholder="例如：數學">
+                        </div>
+                        <div class="col-span-2 space-y-1.5">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">觀課日期</label>
+                            <input type="date" id="input-date" onchange="saveData()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:border-[#1b4332] focus:bg-white focus:ring-2 focus:ring-[#1b4332]/20 outline-none transition-all text-slate-700">
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">學習目標 (KSA)</label>
+                        <textarea id="input-goal" oninput="autoResize(this); saveData()" class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm min-h-[120px] focus:bg-white focus:ring-2 focus:ring-[#1b4332]/20 focus:border-[#1b4332] outline-none transition-all leading-relaxed" placeholder="輸入本節課欲達成的知識、技能與態度目標..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="bg-slate-50 p-6 md:p-8 rounded-3xl border border-slate-200 h-fit">
+                    <div class="flex items-center gap-2 mb-6">
+                        <span class="text-xl">👀</span>
+                        <h3 class="font-bold text-slate-700">指定觀察焦點</h3>
+                    </div>
+                    <div class="space-y-3 mb-5" id="focus-container">
+                        <!-- 動態生成 -->
+                    </div>
+                    <textarea id="input-focus-other" oninput="autoResize(this); saveData()" class="w-full border border-slate-200 rounded-xl p-4 text-sm min-h-[100px] focus:ring-2 focus:ring-[#1b4332]/20 focus:border-[#1b4332] outline-none bg-white transition-all placeholder:text-slate-400" placeholder="其他自訂觀察焦點填寫區..."></textarea>
+                </div>
+            </div>
+        </section>
+
+        <!-- 二、觀課 -->
+        <section id="sec-obs" class="section-card bg-white p-6 md:p-10 rounded-3xl shadow-sm border border-slate-100">
+            <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-6 border-b pb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-[#1b4332] text-white flex items-center justify-center font-bold">2</div>
+                    <h2 class="text-xl font-bold text-[#1b4332]">實時行為與證據採集</h2>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-900 text-white p-2 rounded-2xl w-full xl:w-auto shadow-lg">
+                    <div class="flex flex-col items-center justify-center px-6 py-2 border-r border-white/10">
+                        <span class="text-[10px] text-blue-300 font-bold tracking-wider mb-1">發言</span>
+                        <span id="live-speak" class="text-2xl font-black leading-none">0</span>
+                    </div>
+                    <div class="flex flex-col items-center justify-center px-6 py-2 border-r border-white/10">
+                        <span class="text-[10px] text-indigo-300 font-bold tracking-wider mb-1">提問</span>
+                        <span id="live-ask" class="text-2xl font-black leading-none">0</span>
+                    </div>
+                    <div class="flex flex-col items-center justify-center px-6 py-2 border-r border-white/10">
+                        <span class="text-[10px] text-teal-300 font-bold tracking-wider mb-1">互助</span>
+                        <span id="live-help" class="text-2xl font-black leading-none">0</span>
+                    </div>
+                    <div class="flex flex-col items-center justify-center px-6 py-2">
+                        <span class="text-[10px] text-purple-300 font-bold tracking-wider mb-1">發表</span>
+                        <span id="live-show" class="text-2xl font-black leading-none">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 語音速記區塊 -->
+            <div class="mb-10 bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 no-print">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                    <div>
+                        <h3 class="text-sm font-bold text-indigo-800 flex items-center gap-2">
+                            🎙️ 語音速記 (AI 智慧辨識)
+                            <span class="ai-badge bg-gradient-to-r from-indigo-500 to-purple-500">Beta</span>
+                        </h3>
+                        <p class="text-xs text-indigo-600 mt-1">開啟麥克風口述觀課發現，系統將嘗試自動轉譯並分類。</p>
+                    </div>
+                    <button id="btn-dictate" onclick="toggleDictation()" class="px-5 py-2.5 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-sm font-bold hover:bg-indigo-50 shadow-sm transition-all flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                        <span id="dictate-text">開始錄音</span>
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase">教學事實紀錄</label>
+                        <textarea id="dict-fact" oninput="autoResize(this); saveData()" class="w-full text-xs p-3 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 outline-none bg-white min-h-[80px]" placeholder="等待語音輸入..."></textarea>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase">關鍵語句摘錄</label>
+                        <textarea id="dict-quote" oninput="autoResize(this); saveData()" class="w-full text-xs p-3 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 outline-none bg-white min-h-[80px]" placeholder="等待語音輸入..."></textarea>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase">學生亮點</label>
+                        <textarea id="dict-highlight" oninput="autoResize(this); saveData()" class="w-full text-xs p-3 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 outline-none bg-white min-h-[80px]" placeholder="等待語音輸入..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto mb-12 rounded-xl border border-slate-200 shadow-sm">
+                <table class="w-full border-collapse min-w-[800px]">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wider border-b border-slate-200">
+                            <th class="p-4 text-left font-bold" width="8%">時間</th>
+                            <th class="p-4 text-left font-bold" width="12%">學習模式</th>
+                            <th class="p-4 text-left font-bold" width="45%">學習證據 (行為+產出)</th>
+                            <th class="p-4 text-left font-bold no-print" width="20%">行為計數 (快擊)</th>
+                            <th class="p-4 text-left font-bold" width="15%">能量 / 任務完成率</th>
+                        </tr>
+                    </thead>
+                    <tbody id="obs-tbody" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+
+            <div class="mt-8 border-t border-slate-100 pt-8">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4 no-print">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xl">📸</span>
+                            <h3 class="text-lg font-bold text-slate-800">現場影像證據採集</h3>
+                        </div>
+                        <p class="text-xs text-slate-500">支援多選上傳。為保護學生隱私，影像僅保留於暫存。</p>
+                    </div>
+                    <label class="cursor-pointer bg-[#1b4332] text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-[#133024] shadow-md hover:shadow-lg transition-all flex items-center gap-2 shrink-0">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <span>上傳照片證據</span>
+                        <input type="file" multiple accept="image/*" class="hidden" onchange="handlePhotoUpload(this)">
+                    </label>
+                </div>
+                
+                <div id="photo-gallery" class="photo-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div id="photo-empty" class="col-span-full py-16 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center text-slate-400 no-print bg-slate-50/50">
+                        <span class="text-5xl mb-3 grayscale opacity-50">🖼️</span>
+                        <p class="text-sm font-medium">尚未上傳任何現場照片證據</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 三、分析 -->
+        <section id="sec-ana" class="section-card bg-white p-6 md:p-10 rounded-3xl shadow-sm border border-slate-100">
+            <div class="flex items-center gap-3 mb-8 border-b pb-4">
+                <div class="w-8 h-8 rounded-full bg-[#1b4332] text-white flex items-center justify-center font-bold">3</div>
+                <h2 class="text-xl font-bold text-[#1b4332] flex items-center gap-3">
+                    數據分析與 AI 摘要
+                    <span class="ai-badge">AI Powered</span>
+                </h2>
+            </div>
+
+            <div class="bg-gradient-to-br from-violet-50 to-fuchsia-50 border border-violet-100 p-6 md:p-8 rounded-3xl mb-10 shadow-inner relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-40 h-40 bg-violet-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50"></div>
+                <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-fuchsia-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50"></div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
+                    <div>
+                        <p class="text-sm font-bold text-violet-800 mb-4 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg> 教學結構定位分析</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="flex items-center gap-3 bg-white/80 backdrop-blur p-3.5 rounded-xl border border-violet-100 shadow-sm"><input type="checkbox" id="ai-mode-self" disabled class="w-4 h-4 accent-violet-600"><label class="text-xs font-bold text-slate-700">自學模式 (自主)</label></div>
+                            <div class="flex items-center gap-3 bg-white/80 backdrop-blur p-3.5 rounded-xl border border-violet-100 shadow-sm"><input type="checkbox" id="ai-mode-guide" disabled class="w-4 h-4 accent-violet-600"><label class="text-xs font-bold text-slate-700">導學模式 (引導)</label></div>
+                            <div class="flex items-center gap-3 bg-white/80 backdrop-blur p-3.5 rounded-xl border border-violet-100 shadow-sm"><input type="checkbox" id="ai-mode-co" disabled class="w-4 h-4 accent-violet-600"><label class="text-xs font-bold text-slate-700">共學模式 (小組)</label></div>
+                            <div class="flex items-center gap-3 bg-white/80 backdrop-blur p-3.5 rounded-xl border border-violet-100 shadow-sm"><input type="checkbox" id="ai-mode-inter" disabled class="w-4 h-4 accent-violet-600"><label class="text-xs font-bold text-slate-700">互學模式 (組間)</label></div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col justify-center bg-white/60 backdrop-blur p-6 rounded-2xl border border-violet-100 shadow-sm">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <p class="text-[10px] text-violet-500 font-bold uppercase tracking-wider mb-1">主要教學模式</p>
+                                <p id="ai-primary-text" class="text-xl font-black text-slate-800">運算中...</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-violet-500 font-bold uppercase tracking-wider mb-1">互動能量高峰</p>
+                                <p id="ai-peak-text" class="text-xl font-black text-slate-800">運算中...</p>
+                            </div>
+                        </div>
+                        <div id="ai-insight-box" class="text-xs text-violet-800 bg-violet-100/80 p-3 rounded-xl border border-violet-200 font-medium leading-relaxed hidden">
+                            <!-- JS 動態填入診斷建議 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-12 text-center">
+                <div class="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm"><p class="text-[10px] text-blue-600 font-bold uppercase tracking-wider mb-1">總發言</p><p id="stat-speak" class="text-3xl font-black text-blue-900">0</p></div>
+                <div class="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100 shadow-sm"><p class="text-[10px] text-indigo-600 font-bold uppercase tracking-wider mb-1">總提問</p><p id="stat-ask" class="text-3xl font-black text-indigo-900">0</p></div>
+                <div class="bg-teal-50/50 p-5 rounded-2xl border border-teal-100 shadow-sm"><p class="text-[10px] text-teal-700 font-bold uppercase tracking-wider mb-1">總互助</p><p id="stat-help" class="text-3xl font-black text-teal-900">0</p></div>
+                <div class="bg-purple-50/50 p-5 rounded-2xl border border-purple-100 shadow-sm"><p class="text-[10px] text-purple-600 font-bold uppercase tracking-wider mb-1">總發表</p><p id="stat-show" class="text-3xl font-black text-purple-900">0</p></div>
+                <div class="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 shadow-sm"><p class="text-[10px] text-amber-700 font-bold uppercase tracking-wider mb-1">任務完成率</p><p id="stat-comp" class="text-3xl font-black text-amber-900">0%</p></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="p-6 bg-white rounded-3xl border border-slate-100 shadow-sm chart-container">
+                    <h3 class="font-bold text-center text-slate-700 mb-6 text-sm bg-slate-50 py-2 rounded-lg">📈 學習互動能量趨勢 (0-40')</h3>
+                    <canvas id="chart-energy"></canvas>
+                </div>
+                <div class="p-6 bg-white rounded-3xl border border-slate-100 shadow-sm chart-container">
+                    <h3 class="font-bold text-center text-slate-700 mb-6 text-sm bg-slate-50 py-2 rounded-lg flex items-center justify-center gap-2">
+                        📊 學習證據出現頻次統計
+                    </h3>
+                    <canvas id="chart-evidence"></canvas>
+                    <div class="text-[10px] text-center mt-2 text-slate-500 font-medium">黃色長條代表高層次思考指標</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 四、議課 -->
+        <section id="sec-post" class="section-card bg-white p-6 md:p-10 rounded-3xl shadow-sm border border-slate-100">
+            <div class="flex items-center gap-3 mb-8 border-b pb-4">
+                <div class="w-8 h-8 rounded-full bg-[#1b4332] text-white flex items-center justify-center font-bold">4</div>
+                <h2 class="text-xl font-bold text-[#1b4332]">議課回饋 (三明治對話)</h2>
+            </div>
+            
+            <div class="space-y-10">
+                
+                <!-- AI 議課摘要區塊 -->
+                <div class="bg-violet-50/40 p-6 md:p-8 rounded-3xl border border-violet-100 shadow-sm relative group transition-colors">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-4">
+                        <h3 class="font-bold text-violet-800 flex items-center gap-2 text-lg">
+                            <span>🤖 AI 智能議課摘要草稿</span>
+                            <span class="ai-badge no-print ml-2">Auto-Generated</span>
+                        </h3>
+                        <button id="btn-generate-ai" onclick="generateAISummary()" class="px-5 py-2.5 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 hover:shadow-md transition-all no-print flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                            依據數據生成/更新
+                        </button>
+                    </div>
+                    <textarea id="input-ai-summary" oninput="autoResize(this); saveData()" class="w-full border border-violet-200 rounded-2xl p-5 text-base min-h-[160px] bg-white focus:ring-4 focus:ring-violet-500/20 outline-none leading-relaxed text-slate-700 transition-all placeholder:text-violet-300" placeholder="點擊右上角「生成/更新」按鈕，系統將根據您紀錄的觀課數據與證據，自動運算並生成一段議課摘要草稿..."></textarea>
+                    <p class="text-[11px] text-violet-500 mt-3 no-print font-medium bg-violet-100/50 inline-block px-3 py-1 rounded-lg">💡 提示：此為系統基於您的量化紀錄自動組合之初稿，您可直接於框內進行編修，修改內容會自動儲存並於匯出時呈現。</p>
+                </div>
+
+                <div class="bg-emerald-50/40 p-6 md:p-8 rounded-3xl border border-emerald-100">
+                    <div class="flex items-center gap-2 mb-5">
+                        <span class="text-xl">✅</span>
+                        <h3 class="font-bold text-emerald-800 text-lg">肯定學習事實 (Praise)</h3>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5" id="praise-container">
+                        <!-- 動態生成 -->
+                    </div>
+                    <textarea id="input-praise-other" oninput="autoResize(this); saveData()" class="w-full border border-emerald-200 rounded-2xl p-5 text-sm min-h-[120px] bg-white focus:ring-4 focus:ring-emerald-500/20 outline-none transition-all placeholder:text-emerald-300" placeholder="補充上述事實細節（例如 Kahoot 的答題狀況）..."></textarea>
+                </div>
+
+                <div class="bg-amber-50/40 p-6 md:p-8 rounded-3xl border border-amber-100">
+                    <div class="flex items-center gap-2 mb-5">
+                        <span class="text-xl">❓</span>
+                        <h3 class="font-bold text-amber-800 text-lg">專業引導詢問 (Inquiry)</h3>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5" id="inquiry-container">
+                       <!-- 動態生成 -->
+                    </div>
+                    <textarea id="input-inquiry-other" oninput="autoResize(this); saveData()" class="w-full border border-amber-200 rounded-2xl p-5 text-sm min-h-[120px] bg-white focus:ring-4 focus:ring-amber-500/20 outline-none transition-all placeholder:text-amber-300" placeholder="輸入其他專業詢問與對話紀錄..."></textarea>
+                </div>
+            </div>
+            
+            <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 pt-10 border-t border-slate-200 text-center">
+                <div class="space-y-12">
+                    <div class="h-0.5 bg-slate-200 w-3/4 mx-auto mb-2"></div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-800">授課教師：<span id="final-teach-name" class="text-blue-700">待輸入</span></p>
+                        <p class="text-xs text-slate-400 mt-2 tracking-widest">簽章</p>
+                    </div>
+                </div>
+                <div class="space-y-12">
+                    <div class="h-0.5 bg-slate-200 w-3/4 mx-auto mb-2"></div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-800">觀課教師：<span id="final-obs-name" class="text-blue-700">待輸入</span></p>
+                        <p class="text-xs text-slate-400 mt-2 tracking-widest">簽章</p>
+                    </div>
+                </div>
+                <div class="space-y-12">
+                    <div class="h-0.5 bg-slate-200 w-3/4 mx-auto mb-2"></div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-800">教務處 / 校長</p>
+                        <p class="text-xs text-slate-400 mt-2 tracking-widest">核閱</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const defaultState = {
+            obsCode: '',
+            texts: { 
+                teachName: '', obsName: '', className: '', subject: '', date: '', goal: '', focusOther: '', praiseOther: '', inquiryOther: '', aiSummary: '',
+                dictFact: '', dictQuote: '', dictHighlight: ''
+            },
+            focusOptions: [
+                { id: 'f1', label: '四學模式的轉換時機與效果', checked: true },
+                { id: 'f2', label: '學生數位平台產出證據的深度', checked: true },
+                { id: 'f3', label: '小組合作中互助行為的品質', checked: false },
+                { id: 'f4', label: '學生自主學習時間之專注度', checked: false },
+                { id: 'f5', label: '學生展現高層次思考的頻率', checked: false }
+            ],
+            praiseOptions: [
+                { id: 'p1', label: '數位平台 (Kahoot/Padlet) 產出豐富', checked: false },
+                { id: 'p2', label: '小組互助機制成熟且能主動協助', checked: false },
+                { id: 'p3', label: '教學模式轉換流暢，有效運用時間', checked: false },
+                { id: 'p4', label: '學生展現學習遷移，連結生活經驗', checked: false }
+            ],
+            inquiryOptions: [
+                { id: 'i1', label: '若能增加待答時間，思考會如何轉化？', checked: false },
+                { id: 'i2', label: '如何平衡數位載具競賽性與概念深度？', checked: false },
+                { id: 'i3', label: '觀察到能量下降，可能有何改善空間？', checked: false },
+                { id: 'i4', label: '對於個別落後學生的鷹架引導成效？', checked: false }
+            ],
+            times: ['0-10\'', '10-20\'', '20-30\'', '30-40\''],
+            energy: [3, 3, 3, 3],
+            completion: [0, 0, 0, 0],
+            counts: { speak: 0, ask: 0, help: 0, show: 0 },
+            evidence: {
+                "主動發言": 0, "同儕討論": 0, "數位操作": 0, "提出問題": 0,
+                "分析比較": 0, "提出證據": 0, "解決問題": 0, "創意表現": 0,
+                "學習單": 0, "數位產出": 0, "學生作品": 0, "口語發表": 0
+            },
+            evidenceSelection: {},
+            modes: ['導', '導', '導', '導'],
+            currentProgressPeriod: 0
+        };
+
+        let state = JSON.parse(JSON.stringify(defaultState));
+        let photos = [];
+        const charts = { energy: null, evidence: null };
+        let saveTimeout = null;
+        let recognition = null;
+        let isRecording = false;
+
+        function generateObsCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = 'OBS-';
+            for (let i = 0; i < 4; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+
+        function initTextareas() {
+            document.querySelectorAll('textarea').forEach(ta => {
+                if(ta.value) autoResize(ta);
+            });
+        }
+
+        window.addEventListener('beforeunload', function (e) {
+            if (state.counts.speak > 0 || state.texts.teachName !== '' || photos.length > 0) {
+                e.preventDefault();
+                e.returnValue = ''; 
+            }
+        });
+
+        function loadData() {
+            const saved = localStorage.getItem('obsFormState_v3.1');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    state = { ...defaultState, ...parsed };
+                    
+                    if (!state.obsCode) state.obsCode = generateObsCode();
+
+                    document.getElementById('input-teach-name').value = state.texts.teachName;
+                    document.getElementById('input-obs-name').value = state.texts.obsName;
+                    document.getElementById('input-class').value = state.texts.className;
+                    document.getElementById('input-subject').value = state.texts.subject;
+                    document.getElementById('input-date').value = state.texts.date;
+                    document.getElementById('input-goal').value = state.texts.goal;
+                    document.getElementById('input-focus-other').value = state.texts.focusOther;
+                    document.getElementById('input-praise-other').value = state.texts.praiseOther;
+                    document.getElementById('input-inquiry-other').value = state.texts.inquiryOther;
+                    document.getElementById('input-ai-summary').value = state.texts.aiSummary;
+                    
+                    document.getElementById('dict-fact').value = state.texts.dictFact || '';
+                    document.getElementById('dict-quote').value = state.texts.dictQuote || '';
+                    document.getElementById('dict-highlight').value = state.texts.dictHighlight || '';
+                    
+                    syncNames();
+                } catch (e) { console.error("Data parse error", e); }
+            } else {
+                state.obsCode = generateObsCode();
+            }
+            document.getElementById('obs-code').innerText = state.obsCode;
+        }
+
+        function saveData(immediate = false) {
+            const doSave = () => {
+                state.texts.teachName = document.getElementById('input-teach-name').value;
+                state.texts.obsName = document.getElementById('input-obs-name').value;
+                state.texts.className = document.getElementById('input-class').value;
+                state.texts.subject = document.getElementById('input-subject').value;
+                state.texts.date = document.getElementById('input-date').value;
+                state.texts.goal = document.getElementById('input-goal').value;
+                state.texts.focusOther = document.getElementById('input-focus-other').value;
+                state.texts.praiseOther = document.getElementById('input-praise-other').value;
+                state.texts.inquiryOther = document.getElementById('input-inquiry-other').value;
+                state.texts.aiSummary = document.getElementById('input-ai-summary').value;
+                
+                state.texts.dictFact = document.getElementById('dict-fact').value;
+                state.texts.dictQuote = document.getElementById('dict-quote').value;
+                state.texts.dictHighlight = document.getElementById('dict-highlight').value;
+
+                localStorage.setItem('obsFormState_v3.1', JSON.stringify(state));
+                
+                const indicator = document.getElementById('save-indicator');
+                indicator.style.opacity = '1';
+                setTimeout(() => { indicator.style.opacity = '0'; }, 2000);
+            };
+
+            if (immediate) {
+                clearTimeout(saveTimeout);
+                doSave();
+            } else {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(doSave, 800);
+            }
+        }
+
+        function clearData() {
+            if(confirm("確定要清除所有紀錄嗎？（上傳的照片也會一併清空）")) {
+                localStorage.removeItem('obsFormState_v3.1');
+                photos.forEach(p => URL.revokeObjectURL(p.url));
+                location.reload();
+            }
+        }
+
+        function showTab(id, btn, skipScroll = false) {
+            document.querySelectorAll('.section-card').forEach(s => {
+                s.classList.remove('active');
+                s.style.display = ''; 
+                s.style.opacity = '';
+            });
+            
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('nav-active');
+                b.classList.add('text-slate-500'); 
+            });
+            
+            document.getElementById('sec-' + id).classList.add('active');
+            
+            if (btn) {
+                btn.classList.add('nav-active');
+                btn.classList.remove('text-slate-500'); 
+            }
+            
+            if (!skipScroll) {
+                const navElement = document.querySelector('nav');
+                if (navElement) {
+                    window.scrollTo({ top: navElement.offsetTop - 10, behavior: 'smooth' });
+                } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            }
+            
+            setTimeout(() => {
+                renderCharts();
+                initTextareas();
+            }, 50);
+        }
+
+        function syncNames() {
+            document.getElementById('final-teach-name').innerText = document.getElementById('input-teach-name').value || "待輸入";
+            document.getElementById('final-obs-name').innerText = document.getElementById('input-obs-name').value || "待輸入";
+        }
+
+        function renderCheckboxes(containerId, dataArray, stateKey) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            dataArray.forEach((opt, idx) => {
+                const label = document.createElement('label');
+                label.className = "option-chip";
+                label.innerHTML = `<input type="checkbox" ${opt.checked ? 'checked' : ''} onchange="toggleOption('${stateKey}', ${idx}, this.checked); saveData()"> <span class="text-slate-700">${opt.label}</span>`;
+                container.appendChild(label);
+            });
+        }
+
+        function toggleOption(stateKey, index, isChecked) { state[stateKey][index].checked = isChecked; }
+
+        function updateMode(index, value) { 
+            state.modes[index] = value; 
+            updateProgress(index);
+            renderCharts(); 
+            saveData();
+        }
+        
+        function updateProgress(periodIndex) {
+            state.currentProgressPeriod = Math.max(state.currentProgressPeriod, periodIndex);
+            const percentage = ((state.currentProgressPeriod + 1) / 4) * 100;
+            document.getElementById('obs-progress').style.width = percentage + '%';
+        }
+
+        function addCnt(type) {
+            state.counts[type]++;
+            document.getElementById('live-' + type).innerText = state.counts[type];
+            renderCharts();
+            saveData();
+        }
+
+        function initApp() {
+            loadData();
+            
+            renderCheckboxes('focus-container', state.focusOptions, 'focusOptions');
+            renderCheckboxes('praise-container', state.praiseOptions, 'praiseOptions');
+            renderCheckboxes('inquiry-container', state.inquiryOptions, 'inquiryOptions');
+
+            updateProgress(state.currentProgressPeriod);
+
+            if ('webkitSpeechRecognition' in window) {
+                recognition = new webkitSpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'zh-TW';
+
+                recognition.onstart = function() {
+                    isRecording = true;
+                    const btn = document.getElementById('btn-dictate');
+                    btn.classList.add('recording-active');
+                    document.getElementById('dictate-text').innerText = "錄音中... (點擊停止)";
+                };
+
+                recognition.onresult = function(event) {
+                    let interimTranscript = '';
+                    let finalTranscript = '';
+
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+                        else interimTranscript += event.results[i][0].transcript;
+                    }
+
+                    if (finalTranscript) simulateAIClassification(finalTranscript);
+                };
+
+                recognition.onerror = function(event) {
+                    console.error("Speech recognition error", event.error);
+                    stopDictation();
+                };
+
+                recognition.onend = function() {
+                    if (isRecording) stopDictation();
+                };
+            } else {
+                document.getElementById('btn-dictate').style.display = 'none';
+            }
+
+            const tbody = document.getElementById('obs-tbody');
+            tbody.innerHTML = '';
+            const highLevelThinking = ["分析比較", "提出證據", "解決問題", "創意表現"];
+
+            state.times.forEach((t, i) => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-100 hover:bg-slate-50/50 transition-colors";
+                
+                const evidenceHTML = Object.keys(state.evidence).map(k => {
+                    const chkId = `${i}-${k}`;
+                    const isChecked = state.evidenceSelection[chkId] ? 'checked' : '';
+                    const isHighLevel = highLevelThinking.includes(k);
+                    const bgClass = isHighLevel ? 'bg-amber-50 border-amber-200 hover:bg-amber-100' : 'bg-white border-slate-200 hover:bg-slate-50';
+                    const textClass = isHighLevel ? 'text-amber-800' : 'text-slate-600';
+                    const badge = isHighLevel ? '<span class="text-[8px] text-amber-500 ml-0.5" title="高層次思考">★</span>' : '';
+                    
+                    return `
+                        <label class="flex items-center gap-1 text-[10px] md:text-xs border p-1 rounded-lg cursor-pointer transition-all ${bgClass}">
+                            <input type="checkbox" class="ev-chk w-3 h-3 accent-[#1b4332]" data-period="${i}" data-key="${k}" ${isChecked}> 
+                            <span class="truncate font-medium ${textClass}">${k}${badge}</span>
+                        </label>
+                    `;
+                }).join('');
+
+                tr.innerHTML = `
+                    <td class="p-3 md:p-4 text-xs md:text-sm font-bold text-slate-500">${t}</td>
+                    <td class="p-3 md:p-4">
+                        <div class="flex flex-col gap-1.5">
+                            ${['自', '導', '共', '互'].map(m => `
+                                <label><input type="radio" name="m-${i}" value="${m}" class="hidden mode-radio" ${state.modes[i]===m?'checked':''}><span class="mode-label py-1">${m}學</span></label>
+                            `).join('')}
+                        </div>
+                    </td>
+                    <td class="p-3 md:p-4">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-1.5">
+                            ${evidenceHTML}
+                        </div>
+                    </td>
+                    <td class="p-3 md:p-4 no-print text-center">
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <button onclick="addCnt('speak')" class="counter-btn bg-blue-50 border border-blue-200 text-blue-700 rounded-lg py-2 text-xs font-bold shadow-sm hover:bg-blue-100">+發言</button>
+                            <button onclick="addCnt('ask')" class="counter-btn bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg py-2 text-xs font-bold shadow-sm hover:bg-indigo-100">+提問</button>
+                            <button onclick="addCnt('help')" class="counter-btn bg-teal-50 border border-teal-200 text-teal-700 rounded-lg py-2 text-xs font-bold shadow-sm hover:bg-teal-100">+互助</button>
+                            <button onclick="addCnt('show')" class="counter-btn bg-purple-50 border border-purple-200 text-purple-700 rounded-lg py-2 text-xs font-bold shadow-sm hover:bg-purple-100">+發表</button>
+                        </div>
+                    </td>
+                    <td class="p-3 md:p-4">
+                        <div class="flex flex-col gap-3">
+                            <div>
+                                <div class="flex items-center justify-between text-[10px] md:text-xs text-slate-500 font-bold mb-1"><span>能量</span><span id="e-val-${i}" class="text-[#1b4332] bg-[#1b4332]/10 px-2 py-0.5 rounded-full">${state.energy[i]}</span></div>
+                                <input type="range" min="1" max="5" value="${state.energy[i]}" class="w-full accent-[#1b4332]" oninput="state.energy[${i}]=parseInt(this.value); document.getElementById('e-val-${i}').innerText=this.value; updateProgress(${i}); renderCharts(); saveData()">
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between text-[10px] md:text-xs text-slate-500 font-bold mb-1"><span>完成率</span><span id="c-val-${i}" class="text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">${state.completion[i]}%</span></div>
+                                <input type="range" min="0" max="100" step="10" value="${state.completion[i]}" class="w-full accent-amber-500" oninput="state.completion[${i}]=parseInt(this.value); document.getElementById('c-val-${i}').innerText=this.value+'%'; updateProgress(${i}); renderCharts(); saveData()">
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                tr.querySelectorAll('.mode-radio').forEach(r => {
+                    r.addEventListener('change', (e) => { updateMode(i, e.target.value); });
+                });
+            });
+
+            document.addEventListener('change', (e) => {
+                if (e.target.classList.contains('ev-chk')) {
+                    const period = e.target.dataset.period;
+                    const key = e.target.dataset.key;
+                    state.evidenceSelection[`${period}-${key}`] = e.target.checked;
+                    
+                    state.evidence[key] = 0;
+                    for (let p = 0; p < 4; p++) {
+                        if (state.evidenceSelection[`${p}-${key}`]) state.evidence[key]++;
+                    }
+                    
+                    updateProgress(parseInt(period));
+                    renderCharts();
+                    saveData();
+                }
+            });
+
+            ['speak', 'ask', 'help', 'show'].forEach(t => {
+                document.getElementById('live-' + t).innerText = state.counts[t];
+            });
+
+            renderCharts();
+            setTimeout(initTextareas, 100);
+        }
+
+        function toggleDictation() {
+            if (isRecording) stopDictation(); else startDictation();
+        }
+
+        function startDictation() { if (recognition) recognition.start(); }
+
+        function stopDictation() {
+            if (recognition) {
+                isRecording = false;
+                recognition.stop();
+                const btn = document.getElementById('btn-dictate');
+                btn.classList.remove('recording-active');
+                document.getElementById('dictate-text').innerText = "開始錄音";
+            }
+        }
+
+        function simulateAIClassification(text) {
+            const factBox = document.getElementById('dict-fact');
+            const quoteBox = document.getElementById('dict-quote');
+            const highlightBox = document.getElementById('dict-highlight');
+            
+            if (text.includes("說") || text.includes("問") || text.includes("表示")) {
+                quoteBox.value += (quoteBox.value ? '\n- ' : '- ') + text;
+                autoResize(quoteBox);
+            } else if (text.includes("很棒") || text.includes("優秀") || text.includes("創意") || text.includes("解決")) {
+                highlightBox.value += (highlightBox.value ? '\n- ' : '- ') + text;
+                autoResize(highlightBox);
+            } else {
+                factBox.value += (factBox.value ? '\n- ' : '- ') + text;
+                autoResize(factBox);
+            }
+            saveData();
+        }
+
+        function renderCharts() {
+            ['speak', 'ask', 'help', 'show'].forEach(t => {
+                document.getElementById('stat-' + t).innerText = state.counts[t];
+            });
+            
+            const avgComp = Math.round(state.completion.reduce((a,b)=>a+b, 0)/4);
+            document.getElementById('stat-comp').innerText = avgComp + '%';
+
+            const modeCounts = { '自': 0, '導': 0, '共': 0, '互': 0 };
+            state.modes.forEach(m => modeCounts[m]++);
+            let maxM = '導', maxV = -1;
+            for(let k in modeCounts) { if(modeCounts[k] > maxV) { maxV = modeCounts[k]; maxM = k; } }
+            
+            document.getElementById('ai-mode-self').checked = (maxM === '自');
+            document.getElementById('ai-mode-guide').checked = (maxM === '導');
+            document.getElementById('ai-mode-co').checked = (maxM === '共');
+            document.getElementById('ai-mode-inter').checked = (maxM === '互');
+            
+            const modeNames = { '自': '自主學習模式', '導': '教師導學模式', '共': '組內共學模式', '互': '組間互學模式' };
+            document.getElementById('ai-primary-text').innerText = modeNames[maxM];
+            
+            let maxIdx = 0;
+            state.energy.forEach((v, i) => { if(v > state.energy[maxIdx]) maxIdx = i; });
+            document.getElementById('ai-peak-text').innerText = state.times[maxIdx];
+
+            const insightBox = document.getElementById('ai-insight-box');
+            let insightMsg = "";
+            if (maxM === '自' && avgComp < 50) {
+                insightMsg = "💡 系統建議：觀察到本節課以「自學」為主，但整體任務完成率偏低，議課時可探討自學任務的鷹架與時間分配是否適宜。";
+            } else if (maxM === '共' && state.counts.help < 3) {
+                insightMsg = "💡 系統建議：本節課多為「小組共學」，但互助行為紀錄較少，可與授課教師討論如何強化組內的實質合作機制。";
+            } else if (maxM === '導' && state.counts.speak > 10) {
+                 insightMsg = "🌟 亮點提示：以「導學」為主且學生主動發言次數高，顯示教師提問設計能有效引發學生思考參與。";
+            }
+
+            if (insightMsg) {
+                insightBox.innerText = insightMsg;
+                insightBox.classList.remove('hidden');
+            } else {
+                insightBox.classList.add('hidden');
+            }
+
+            const cfg = { 
+                maintainAspectRatio: false, 
+                responsive: true, 
+                animation: false, 
+                plugins: { legend: { display: false } } 
+            };
+
+            const ctxE = document.getElementById('chart-energy').getContext('2d');
+            if (charts.energy) charts.energy.destroy();
+            charts.energy = new Chart(ctxE, {
+                type: 'line',
+                data: {
+                    labels: state.times,
+                    datasets: [{ 
+                        data: state.energy, 
+                        borderColor: '#8b5cf6', 
+                        backgroundColor: 'rgba(139, 92, 246, 0.15)', 
+                        fill: true, 
+                        tension: 0.4,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#8b5cf6',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: { ...cfg, scales: { y: { min: 0, max: 5, ticks: { stepSize: 1 } }, x: { grid: { display: false } } } }
+            });
+
+            const ctxV = document.getElementById('chart-evidence').getContext('2d');
+            if (charts.evidence) charts.evidence.destroy();
+            
+            const bgColors = Object.keys(state.evidence).map(k => {
+                const highLevelThinking = ["分析比較", "提出證據", "解決問題", "創意表現"];
+                return highLevelThinking.includes(k) ? '#fbbf24' : '#1b4332';
+            });
+
+            charts.evidence = new Chart(ctxV, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(state.evidence),
+                    datasets: [{ 
+                        data: Object.values(state.evidence), 
+                        backgroundColor: bgColors,
+                        borderRadius: 6
+                    }]
+                },
+                options: { ...cfg, indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } }, y: { grid: { display: false } } } }
+            });
+        }
+
+        function generateAISummary() {
+            const btn = document.getElementById('btn-generate-ai');
+            const textArea = document.getElementById('input-ai-summary');
+            
+            btn.innerHTML = `<svg class="animate-spin w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> 運算分析中...`;
+            btn.classList.add('opacity-80', 'cursor-not-allowed');
+            textArea.classList.add('ai-loading', 'bg-violet-50');
+            
+            setTimeout(() => {
+                const teach = state.texts.teachName || '授課教師';
+                const cls = state.texts.className || '該班級';
+                const sub = state.texts.subject || '本堂課';
+
+                const modeCounts = { '自': 0, '導': 0, '共': 0, '互': 0 };
+                state.modes.forEach(m => modeCounts[m]++);
+                let maxM = '導', maxV = -1;
+                for(let k in modeCounts) { if(modeCounts[k] > maxV) { maxV = modeCounts[k]; maxM = k; } }
+                const modeNames = { '自': '「自主學習」', '導': '「教師導學」', '共': '「小組共學」', '互': '「組間互學」' };
+
+                let topEvidence = '';
+                let topEvCount = 0;
+                let highLevelCount = 0;
+                const highLevelThinking = ["分析比較", "提出證據", "解決問題", "創意表現"];
+
+                for(let key in state.evidence) {
+                    if (state.evidence[key] > topEvCount) {
+                        topEvCount = state.evidence[key];
+                        topEvidence = key;
+                    }
+                    if (highLevelThinking.includes(key)) {
+                        highLevelCount += state.evidence[key];
+                    }
+                }
+
+                const avgComp = Math.round(state.completion.reduce((a,b)=>a+b, 0)/4);
+                const avgEnergy = (state.energy.reduce((a,b)=>a+b, 0)/4).toFixed(1);
+
+                let p1 = `${teach}在${cls}的${sub}中，主要以${modeNames[maxM]}模式推進教學節奏，整體課堂能量平均達到 ${avgEnergy} 分。`;
+                
+                let strengths = [];
+                if (state.counts.speak >= 5) strengths.push(`學生主動發言意願極高（共紀錄 ${state.counts.speak} 次）`);
+                if (state.counts.help >= 4) strengths.push(`同儕間展現良好的互助協作氛圍（共紀錄 ${state.counts.help} 次）`);
+                if (avgComp >= 80) strengths.push(`整體任務完成度極佳（平均達 ${avgComp}%）`);
+                
+                if (strengths.length > 0) {
+                    p1 += `本節課的核心亮點在於：${strengths.join('，且')}。`;
+                } else {
+                    p1 += `教師能平穩掌控教學流程，並適時給予學生引導。`;
+                }
+
+                if (topEvCount > 0) {
+                    p1 += `從現場採集的數據與影像可見，學生在「${topEvidence}」的學習證據表現尤為突出。`;
+                }
+                
+                if (highLevelCount >= 3) {
+                    p1 += `此外，觀察到學生展現出高頻次(${highLevelCount}次)的高層次思考行為（如分析比較、解決問題等），顯示教學設計能有效深化學生認知。`;
+                }
+
+                let p2 = `【後續議課探詢建議】\n`;
+                if (maxM === '自' && avgComp < 60) {
+                    p2 += `觀察到任務完成率偏低，建議可探討：在自主學習階段，如何搭建更清晰的鷹架或調整時間配置？`;
+                } else if (maxM === '共' && state.counts.help < 3) {
+                    p2 += `本節課有安排共學，但互助行為較少。建議可探討：如何進一步優化小組任務設計，以實質促發組內互助？`;
+                } else if (maxM === '導' && state.counts.speak <= 3) {
+                    p2 += `建議可探討：若適度增加關鍵提問的「待答時間」，或導入數位互動平台，是否能進一步提升學生的發言率與參與度？`;
+                } else {
+                    p2 += `建議可邀請教師分享：是如何設計出如此高參與度的教學環節？並探討未來如何將此成功經驗遷移至其他單元。`;
+                }
+                
+                if (state.texts.dictHighlight) {
+                     p2 += `\n*(備註：語音速記亮點參考：${state.texts.dictHighlight.replace(/\n/g, ' ')})*`;
+                }
+
+                const finalSummary = `${p1}\n\n${p2}`;
+                
+                textArea.value = finalSummary;
+                state.texts.aiSummary = finalSummary;
+                saveData();
+                autoResize(textArea);
+
+                btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg> 依據數據生成/更新`;
+                btn.classList.remove('opacity-80', 'cursor-not-allowed');
+                textArea.classList.remove('ai-loading', 'bg-violet-50');
+                
+            }, 800);
+        }
+
+        function handlePhotoUpload(input) {
+            if (input.files) {
+                Array.from(input.files).forEach(file => {
+                    const objectUrl = URL.createObjectURL(file);
+                    photos.push({ id: Date.now() + Math.random(), url: objectUrl, caption: '' });
+                });
+                renderGallery();
+            }
+            input.value = ''; 
+        }
+
+        function removePhoto(idToRemove) {
+            const index = photos.findIndex(p => p.id === idToRemove);
+            if(index > -1) {
+                URL.revokeObjectURL(photos[index].url);
+                photos.splice(index, 1);
+                renderGallery();
+            }
+        }
+
+        function renderGallery() {
+            const gallery = document.getElementById('photo-gallery');
+            const empty = document.getElementById('photo-empty');
+            
+            gallery.querySelectorAll('.photo-card').forEach(c => c.remove());
+            
+            if (photos.length > 0) {
+                empty.style.display = 'none';
+                photos.forEach((p, idx) => {
+                    const div = document.createElement('div');
+                    div.className = "photo-card p-3 group flex flex-col gap-3";
+                    div.innerHTML = `
+                        <div class="delete-btn opacity-0 group-hover:opacity-100" onclick="removePhoto(${p.id})" title="刪除照片">×</div>
+                        <img src="${p.url}" class="photo-preview shadow-sm bg-slate-100">
+                        <textarea oninput="photos[${idx}].caption=this.value; autoResize(this)" class="w-full text-sm p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1b4332]/20 focus:border-[#1b4332] outline-none transition-all placeholder:text-slate-400" placeholder="輸入證據觀察描述...">${p.caption}</textarea>
+                    `;
+                    gallery.appendChild(div);
+                });
+                setTimeout(initTextareas, 50);
+            } else { 
+                empty.style.display = 'flex'; 
+            }
+        }
+
+        // --- 匯出實體 PDF 檔案功能 ---
+        let prePrintActiveTabBtn = null;
+
+        async function exportPDF() {
+            // 1. 儲存最新資料並切換按鈕為載入狀態
+            saveData(true);
+            const btn = document.getElementById('export-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<svg class="animate-spin w-4 h-4 mr-2 inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> PDF 產生中...`;
+            btn.classList.add('opacity-80', 'cursor-not-allowed', 'pointer-events-none');
+
+            try {
+                const element = document.body; // 定義要輸出的範圍，修復未定義導致的錯誤
+
+                // 2. 紀錄目前頁籤，以便匯出後還原
+                if (!prePrintActiveTabBtn) {
+                    prePrintActiveTabBtn = document.querySelector('.nav-active');
+                }
+                
+                // 3. 強制展開所有區塊與確保文字框拉長
+                document.querySelectorAll('.section-card').forEach(s => {
+                    s.style.display = 'block';
+                    s.style.opacity = '1';
+                    s.classList.add('active');
+                });
+                initTextareas();
+                
+                // 4. 隱藏不需匯出的 UI 元素 (no-print 類別，如按鈕、導覽列)
+                const noPrintElements = document.querySelectorAll('.no-print');
+                const originalDisplays = [];
+                noPrintElements.forEach((el, index) => {
+                    originalDisplays[index] = el.style.display;
+                    el.style.display = 'none';
+                });
+
+                // 5. 確保背景色與圖表重繪，並套用 PDF 專屬安全排版
+                document.body.classList.add('pdf-mode');
+                document.documentElement.style.overflow = 'hidden'; // ★ 隱藏滾動條避免寬度干擾
+
+                if (charts.energy) { charts.energy.resize(); charts.energy.update('none'); }
+                if (charts.evidence) { charts.evidence.resize(); charts.evidence.update('none'); }
+
+                // 讓畫面有時間完整渲染
+                await new Promise(r => setTimeout(r, 600));
+
+                window.scrollTo(0, 0); // 確保視窗在最上方
+
+                // 6. 呼叫 html2pdf 產生並下載檔案
+                const opt = {
+                    margin:       [10, 10, 10, 10], // 上、左、下、右邊界 (mm)
+                    filename:     `${state.obsCode || '觀課紀錄'}-教師觀課表單.pdf`,
+                    image:        { type: 'jpeg', quality: 1.0 },
+                    html2canvas:  { 
+                        scale: 2, 
+                        useCORS: true, 
+                        windowWidth: 1200, 
+                        x: 0, // ★ 強制擷取起點座標 X
+                        y: 0, // ★ 強制擷取起點座標 Y
+                        scrollX: 0, 
+                        scrollY: 0, 
+                        letterRendering: true 
+                    },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                    pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.chart-container', '.photo-card', 'textarea'] }
+                };
+
+                await html2pdf().set(opt).from(element).save();
+
+                // 7. 匯出完成，恢復原狀
+                document.body.classList.remove('pdf-mode');
+                document.documentElement.style.overflow = '';
+                noPrintElements.forEach((el, index) => {
+                    el.style.display = originalDisplays[index];
+                });
+
+            } catch (error) {
+                console.error("PDF 產生時發生錯誤:", error);
+                alert("PDF 匯出失敗，請檢查主控台訊息或重試。");
+            } finally {
+                // 回復原頁籤與按鈕狀態
+                if (prePrintActiveTabBtn) {
+                    const activeTabId = prePrintActiveTabBtn.getAttribute('onclick').match(/'([^']+)'/)[1];
+                    showTab(activeTabId, prePrintActiveTabBtn, true);
+                    prePrintActiveTabBtn = null; 
+                }
+                btn.innerHTML = originalText;
+                btn.classList.remove('opacity-80', 'cursor-not-allowed', 'pointer-events-none');
+            }
+        }
+
+        // --- 匯出 CSV 試算表功能 ---
+        function exportCSV() {
+            // 確保資料是最新的
+            saveData(true);
+            
+            // 1. 定義 CSV 標題列
+            const headers = [
+                "觀課代碼", "授課教師", "觀課教師", "觀課班級", "觀課科目", "觀課日期",
+                "總發言次數", "總提問次數", "總互助次數", "總發表次數",
+                "0-10分能量", "10-20分能量", "20-30分能量", "30-40分能量",
+                "0-10分完成率", "10-20分完成率", "20-30分完成率", "30-40分完成率",
+                "AI議課摘要"
+            ];
+
+            // 2. 擷取資料，並防止內文包含逗號或換行破壞 CSV 結構
+            const row = [
+                state.obsCode || '',
+                state.texts.teachName || '',
+                state.texts.obsName || '',
+                state.texts.className || '',
+                state.texts.subject || '',
+                state.texts.date || '',
+                state.counts.speak,
+                state.counts.ask,
+                state.counts.help,
+                state.counts.show,
+                state.energy[0], state.energy[1], state.energy[2], state.energy[3],
+                `${state.completion[0]}%`, `${state.completion[1]}%`, `${state.completion[2]}%`, `${state.completion[3]}%`,
+                `"${(state.texts.aiSummary || '').replace(/"/g, '""').replace(/\n/g, '\r\n')}"` // 處理換行與雙引號
+            ];
+
+            // 3. 加入 BOM 標籤 (解決 Excel 開啟 UTF-8 變亂碼問題)，並組裝內容
+            const csvContent = "\uFEFF" + headers.join(',') + '\n' + row.join(',');
+
+            // 4. 產生實體檔案並觸發下載
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", `${state.obsCode || '觀課紀錄'}-數據統計.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
