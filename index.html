@@ -1057,125 +1057,44 @@
             }
         }
 
-        // --- 匯出實體 PDF 檔案功能 ---
-        let prePrintActiveTabBtn = null;
+       // --- 匯出實體 PDF 檔案功能 ---
+function exportPDF() {
+    // 1. 儲存最新資料
+    saveData(true);
+    
+    // 2. 為了確保匯出完整內容，暫時展開所有 Section
+    let prePrintActiveTabBtn = document.querySelector('.nav-btn.nav-active');
+    document.querySelectorAll('.section-card').forEach(sec => {
+        sec.classList.add('active'); // 顯示所有區塊
+        sec.style.display = 'block';
+        sec.style.opacity = '1';
+        sec.style.visibility = 'visible';
+    });
+    
+    // 確保所有 textarea 都能完全展開顯示內容
+    if (typeof autoResize === 'function') {
+        document.querySelectorAll('textarea').forEach(ta => autoResize(ta));
+    }
 
-        async function exportPDF() {
-            // 1. 儲存最新資料並切換按鈕為載入狀態
-            saveData(true);
-            const btn = document.getElementById('export-btn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = `<svg class="animate-spin w-4 h-4 mr-2 inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> PDF 產生中...`;
-            btn.classList.add('opacity-80', 'cursor-not-allowed', 'pointer-events-none');
-
-            // ★ 宣告放在 try 外部，確保 finally 區塊可以存取到並還原
-            const textareas = document.querySelectorAll('textarea');
-            const tempDivs = [];
-
-            try {
-                const element = document.body; // 定義要輸出的範圍，修復未定義導致的錯誤
-
-                // 2. 紀錄目前頁籤，以便匯出後還原
-                if (!prePrintActiveTabBtn) {
-                    prePrintActiveTabBtn = document.querySelector('.nav-active');
-                }
-                
-                // 3. 強制展開所有區塊與確保文字框拉長
-                document.querySelectorAll('.section-card').forEach(s => {
-                    s.style.display = 'block';
-                    s.style.opacity = '1';
-                    s.classList.add('active');
-                });
-                initTextareas();
-
-                // ★ 核心修復：將 textarea 暫時轉換為 div，完美解決長篇文字被截斷的問題
-                textareas.forEach(ta => {
-                    const div = document.createElement('div');
-                    div.className = ta.className; // 複製原本的樣式
-                    div.style.whiteSpace = 'pre-wrap';
-                    div.style.wordBreak = 'break-word';
-                    div.style.height = 'auto'; // 讓高度自然延伸
-                    
-                    if (ta.value) {
-                        div.innerText = ta.value;
-                    } else if (ta.placeholder) {
-                        div.innerText = ta.placeholder;
-                        div.style.color = '#94a3b8'; // 預設 placeholder 的顏色
-                    }
-                    
-                    ta.parentNode.insertBefore(div, ta.nextSibling);
-                    tempDivs.push(div);
-                    ta.style.display = 'none'; // 暫時隱藏原始 textarea
-                });
-                
-                // 4. 隱藏不需匯出的 UI 元素 (no-print 類別，如按鈕、導覽列)
-                const noPrintElements = document.querySelectorAll('.no-print');
-                const originalDisplays = [];
-                noPrintElements.forEach((el, index) => {
-                    originalDisplays[index] = el.style.display;
-                    el.style.display = 'none';
-                });
-
-                // 5. 確保背景色與圖表重繪，並套用 PDF 專屬安全排版
-                document.body.classList.add('pdf-mode');
-                document.documentElement.style.overflow = 'hidden'; // 隱藏滾動條避免寬度干擾
-
-                if (charts.energy) { charts.energy.resize(); charts.energy.update('none'); }
-                if (charts.evidence) { charts.evidence.resize(); charts.evidence.update('none'); }
-
-                // 讓畫面有時間完整渲染
-                await new Promise(r => setTimeout(r, 600));
-
-                window.scrollTo(0, 0); // 確保視窗在最上方
-
-                // 6. 呼叫 html2pdf 產生並下載檔案
-                const opt = {
-                    margin:       [10, 10, 10, 10], // 上、左、下、右邊界 (mm)
-                    filename:     `${state.obsCode || '觀課紀錄'}-教師觀課表單.pdf`,
-                    image:        { type: 'jpeg', quality: 1.0 },
-                    html2canvas:  { 
-                        scale: 2, 
-                        useCORS: true, 
-                        windowWidth: 1200, 
-                        x: 0, 
-                        y: 0, 
-                        scrollX: 0, 
-                        scrollY: 0, 
-                        letterRendering: true 
-                    },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                    // ★ 移除 'textarea' 的防斷行限制，允許長文字跨頁
-                    pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.chart-container', '.photo-card'] }
-                };
-
-                await html2pdf().set(opt).from(element).save();
-
-                // 7. 匯出完成，恢復原狀
-                document.body.classList.remove('pdf-mode');
-                document.documentElement.style.overflow = '';
-                noPrintElements.forEach((el, index) => {
-                    el.style.display = originalDisplays[index];
-                });
-
-            } catch (error) {
-                console.error("PDF 產生時發生錯誤:", error);
-                alert("PDF 匯出失敗，請檢查主控台訊息或重試。");
-            } finally {
-                // ★ 清理：將 div 移除，還原原本的 textarea
-                textareas.forEach(ta => ta.style.display = '');
-                tempDivs.forEach(div => div.remove());
-
-                // 回復原頁籤與按鈕狀態
-                if (prePrintActiveTabBtn) {
-                    const activeTabId = prePrintActiveTabBtn.getAttribute('onclick').match(/'([^']+)'/)[1];
-                    showTab(activeTabId, prePrintActiveTabBtn, true);
-                    prePrintActiveTabBtn = null; 
-                }
-                btn.innerHTML = originalText;
-                btn.classList.remove('opacity-80', 'cursor-not-allowed', 'pointer-events-none');
-            }
+    // 3. 稍微等待 DOM 展開與圖表渲染後，呼叫瀏覽器原生列印
+    setTimeout(() => {
+        // 觸發瀏覽器列印對話框 (讓使用者選擇「另存為 PDF」)
+        window.print();
+        
+        // 4. 列印對話框關閉後，恢復原本的分頁隱藏狀態
+        document.querySelectorAll('.section-card').forEach(sec => {
+            sec.classList.remove('active');
+            sec.style.display = '';
+            sec.style.opacity = '';
+            sec.style.visibility = '';
+        });
+        
+        // 切換回原本正在看的分頁
+        if (prePrintActiveTabBtn) {
+            prePrintActiveTabBtn.click();
         }
-
+    }, 500); // 給予 0.5 秒的緩衝時間
+}
         // --- 匯出 CSV 試算表功能 ---
         function exportCSV() {
             // 確保資料是最新的
